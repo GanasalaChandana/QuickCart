@@ -11,7 +11,10 @@ async function connectDB() {
     }
 
     if (!cached.promise) {
-        const opts = { bufferCommands: false };
+        const opts = { bufferCommands: false,
+            serverSelectionTimeoutMS: 10000, // Increase server selection timeout
+            socketTimeoutMS: 45000, // Increase socket timeout
+         };
         cached.promise = mongoose.connect(`${process.env.MONGODB_URI}/quickstart`, opts);
     }
 
@@ -19,7 +22,8 @@ async function connectDB() {
         cached.conn = await cached.promise;
         return cached.conn;
     } catch (error) {
-        console.error('MongoDB connection error:', error);
+        console.error('MongoDB connection error:', error.message); // Log only the error message
+
         throw error;
     }
 }

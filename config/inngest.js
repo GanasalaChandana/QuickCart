@@ -1,6 +1,6 @@
 import { Inngest } from "inngest";
 import connectDB from "./db";
-import User from "@/models/User"; // Corrected import path
+import User from "@/models/User";
 import Order from "@/models/Order";
 
 // Create a client to send and receive events
@@ -27,7 +27,8 @@ export const syncUserCreation = inngest.createFunction(
 
             return {
                 success: true,
-                user: user
+                // Convert to plain object to avoid circular references
+                user: user.toObject ? user.toObject() : user
             };
         } catch (error) {
             console.error('User creation sync error:', error);
@@ -59,7 +60,8 @@ export const syncUserUpdate = inngest.createFunction(
 
             return {
                 success: true,
-                user: user
+                // Convert to plain object to avoid circular references
+                user: user?.toObject ? user.toObject() : user
             };
         } catch (error) {
             console.error('User update sync error:', error);
@@ -85,7 +87,8 @@ export const syncUserDeletion = inngest.createFunction(
 
             return {
                 success: true,
-                user: deletedUser
+                // Convert to plain object to avoid circular references
+                user: deletedUser?.toObject ? deletedUser.toObject() : deletedUser
             };
         } catch (error) {
             console.error('User deletion sync error:', error);
@@ -97,7 +100,7 @@ export const syncUserDeletion = inngest.createFunction(
     }
 );
 
-//Inngest Function to create User's order in database
+// Inngest Function to create User's order in database
 export const createUserOrder = inngest.createFunction(
     {
         id: 'create-user-order',
@@ -108,23 +111,32 @@ export const createUserOrder = inngest.createFunction(
     },
     { event: 'order/created' },
     async ({ events }) => {
-        const orders = events.map((event) => {
+        try {
+            const orders = events.map((event) => {
+                return {
+                    userId: event.data.userId,
+                    items: event.data.items,
+                    amount: event.data.amount,
+                    address: event.data.address,
+                    date: event.data.date
+                };
+            });
+            
+            await connectDB();
+            const result = await Order.insertMany(orders);
+            
             return {
-                userId: event.data.userId,
-                items: event.data.items,
-                amount: event.data.amount,
-                address: event.data.address,
-                date: event.data.date
-
-            }
-
+                success: true, 
+                processed: orders.length,
+                // Return IDs only to avoid circular references
+                orderIds: result.map(order => order._id)
+            };
+        } catch (error) {
+            console.error('Order creation error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
         }
-
-)
-await connectDB();
-await Order.insertMany(orders);
-return {success: true, processed: orders.length};
-}
-    
-    
-)
+    }
+);

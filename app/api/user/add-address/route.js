@@ -1,11 +1,12 @@
 import connectDB from '@/config/db'
-import { getAuth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import Address from '@/models/Address'
+import User from '@/models/User'
 
 export async function POST(request) {
     try {
-        const { userId } = getAuth(request)
+        const { userId } = auth;
+        const user = await User.findById(userId);
         const { address } = await request.json()
         await connectDB()
         
